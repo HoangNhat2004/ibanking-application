@@ -1,4 +1,3 @@
-// File: frontend/src/TuitionPaymentForm.js
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -14,48 +13,41 @@ const TuitionPaymentForm = ({ user }) => {
   const [showOtpForm, setShowOtpForm] = useState(false);
   const navigate = useNavigate();
 
+  // --- LOGIC GIỮ NGUYÊN ---
   const handleFetchStudentInfo = async () => {
-    console.log(`Fetching student info for studentId: ${studentId}`);
     try {
       const response = await axios.get(`http://localhost:3000/api/student/${studentId}`);
-      console.log("Student response:", response.data);
       setStudentInfo(response.data.student);
       setMessage('');
       setError('');
     } catch (err) {
-      console.error("Fetch student info error:", err.response?.data?.message || err.message);
       setError(err.response?.data?.message || "Failed to fetch student info");
       setStudentInfo(null);
     }
   };
 
   const handleTransactionConfirmation = async () => {
-    console.log(`Confirming transaction for studentId: ${studentId}`);
     if (!isTermsAccepted) {
       setError("You must accept the terms and conditions");
       return;
     }
-
     try {
       const response = await axios.post('http://localhost:3000/api/payment', {
         payerUsername: user.username,
         studentId,
         email: user.email
       });
-      console.log("Transaction confirmation response:", response.data);
       setTransactionId(response.data.transactionId);
       setMessage(response.data.message);
       setError('');
       setShowOtpForm(true);
     } catch (err) {
-      console.error("Transaction confirmation error:", err.response?.data?.message || err.message);
       setError(err.response?.data?.message || "Transaction confirmation failed");
       setMessage('');
     }
   };
 
   const handleFinalConfirmation = async () => {
-    console.log(`Final confirmation with OTP: ${otp}, transactionId: ${transactionId}`);
     try {
       const response = await axios.post('http://localhost:3000/api/confirm-payment', {
         transactionId,
@@ -63,7 +55,6 @@ const TuitionPaymentForm = ({ user }) => {
         payerUsername: user.username,
         studentId
       });
-      console.log("Final confirmation response:", response.data);
       setMessage(response.data.message);
       setError('');
       setShowOtpForm(false);
@@ -72,59 +63,96 @@ const TuitionPaymentForm = ({ user }) => {
       setOtp('');
       setTransactionId('');
       setIsTermsAccepted(false);
-      // Quay lại trang chuyển khoản
       setTimeout(() => navigate('/payment'), 2000);
     } catch (err) {
-      console.error("Final confirmation error:", err.response?.data?.message || err.message);
       setError(err.response?.data?.message || "Final confirmation failed");
       setMessage('');
     }
   };
 
+  // --- GIAO DIỆN MỚI ---
   return (
-    <div>
-      <h2>Tuition Payment</h2>
-      <div>
-        <label>Student ID (MSSV):</label>
-        <input
-          type="text"
-          value={studentId}
-          onChange={(e) => setStudentId(e.target.value)}
-        />
-        <button onClick={handleFetchStudentInfo}>Fetch Student Info</button>
-      </div>
+    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex justify-center items-center p-6">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 border border-green-200">
+        <h2 className="text-3xl font-bold text-center text-green-700 mb-6">
+          🎓 Tuition Payment
+        </h2>
 
-      {studentInfo && (
-        <div>
-          <p>Student Name: {studentInfo.fullName}</p>
-          <p>Tuition Amount: {studentInfo.tuitionAmount} VND</p>
-          <label>
+        {/* Nhập MSSV */}
+        <div className="mb-6">
+          <label className="block text-gray-700 font-semibold mb-2">Student ID (MSSV):</label>
+          <div className="flex gap-2">
             <input
-              type="checkbox"
-              checked={isTermsAccepted}
-              onChange={(e) => setIsTermsAccepted(e.target.checked)}
+              type="text"
+              value={studentId}
+              onChange={(e) => setStudentId(e.target.value)}
+              placeholder="Enter your student ID"
+              className="flex-1 border border-green-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-400 outline-none"
             />
-            I accept the terms and conditions
-          </label>
-          <button onClick={handleTransactionConfirmation}>Transaction Confirmation</button>
+            <button
+              onClick={handleFetchStudentInfo}
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg transition"
+            >
+              Fetch
+            </button>
+          </div>
         </div>
-      )}
 
-      {showOtpForm && (
-        <div>
-          <h3>Enter OTP</h3>
-          <label>OTP Code:</label>
-          <input
-            type="text"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value)}
-          />
-          <button onClick={handleFinalConfirmation}>Final Confirmation</button>
-        </div>
-      )}
+        {/* Thông tin sinh viên */}
+        {studentInfo && (
+          <div className="bg-green-50 p-4 rounded-xl border border-green-200 mb-4">
+            <p className="text-gray-800 font-medium">👤 Name: <span className="font-semibold">{studentInfo.fullName}</span></p>
+            <p className="text-gray-800 font-medium">💰 Tuition: <span className="font-semibold text-green-700">{studentInfo.tuitionAmount} VND</span></p>
 
-      {message && <p style={{ color: 'green' }}>{message}</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+            <div className="mt-3">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={isTermsAccepted}
+                  onChange={(e) => setIsTermsAccepted(e.target.checked)}
+                  className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                />
+                I accept the <span className="text-green-600 underline">terms and conditions</span>
+              </label>
+            </div>
+
+            <button
+              onClick={handleTransactionConfirmation}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg mt-4 transition"
+            >
+              Confirm Transaction
+            </button>
+          </div>
+        )}
+
+        {/* OTP */}
+        {showOtpForm && (
+          <div className="mt-6 bg-green-50 border border-green-200 p-4 rounded-xl">
+            <h3 className="text-lg font-semibold text-green-700 mb-2">Enter OTP</h3>
+            <input
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              placeholder="Enter your OTP"
+              className="w-full border border-green-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-400 outline-none"
+            />
+            <button
+              onClick={handleFinalConfirmation}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg mt-4 transition"
+            >
+              Final Confirmation
+            </button>
+          </div>
+        )}
+
+        {/* Thông báo */}
+        {message && (
+          <p className="text-center text-green-600 font-medium mt-4">{message}</p>
+        )}
+        {error && (
+          <p className="text-center text-red-500 font-medium mt-4">{error}</p>
+        )}
+      </div>
     </div>
   );
 };
