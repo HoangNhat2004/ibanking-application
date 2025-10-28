@@ -12,8 +12,12 @@ const Login = ({ setUser }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    console.log("Sending login request to: http://localhost:3000/api/login");
-    console.log("Request payload:", { username: username.trim(), password: password.trim() });
+    
+    // Chỉ log thông tin không nhạy cảm trong development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log("Sending login request to: http://localhost:3000/api/login");
+      console.log("Request payload:", { username: username.trim() });
+    }
 
     try {
       const response = await axios.post(
@@ -22,7 +26,10 @@ const Login = ({ setUser }) => {
         { headers: { 'Content-Type': 'application/json' } }
       );
 
-      console.log("Response from server:", response.data);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log("Response from server:", response.data);
+      }
+
       if (response.data.success) {
         setUser(response.data.user);
         navigate('/dashboard');

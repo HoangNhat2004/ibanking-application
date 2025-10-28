@@ -6,19 +6,24 @@ const router = express.Router();
 const { connectDB } = require('../db');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const bcrypt = require('bcrypt');
+
+// Hard-code email credentials
+const EMAIL_USER = 'nhnhat202@gmail.com';
+const EMAIL_PASS = 'zlzu xsbu qrfz powu';
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'nhnhat202@gmail.com', // Email của bạn
-    pass: 'zlzu xsbu qrfz powu' // Thay bằng App Password 16 ký tự
+    user: EMAIL_USER,
+    pass: EMAIL_PASS
   }
 });
 
 async function sendEmail(to, subject, text) {
   try {
     const mailOptions = {
-      from: 'nhnhat202@gmail.com',
+      from: EMAIL_USER,
       to,
       subject,
       text
@@ -43,9 +48,9 @@ router.post('/login', async (req, res) => {
   try {
     const db = await connectDB();
     console.log("Connected to MongoDB for login");
-    const user = await db.collection('users').findOne({ username, password });
+    const user = await db.collection('users').findOne({ username });
 
-    if (!user) {
+    if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ success: false, message: "Invalid username or password" });
     }
 

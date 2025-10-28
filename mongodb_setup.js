@@ -3,6 +3,7 @@
 // Sử dụng MongoDB Node.js driver để thực hiện các thao tác
 
 const { MongoClient } = require('mongodb');
+const bcrypt = require('bcrypt');
 
 // Kết nối tới MongoDB
 const uri = "mongodb://localhost:27017"; // Thay đổi URI nếu cần
@@ -24,11 +25,16 @@ async function setupDatabase() {
     await usersCollection.createIndex({ email: 1 }, { unique: true });
     console.log("Created indexes for users collection");
 
+    // Hash mật khẩu cho dữ liệu mẫu
+    const saltRounds = 10;
+    const hashedPassword1 = await bcrypt.hash("123456", saltRounds);
+    const hashedPassword2 = await bcrypt.hash("123456", saltRounds);
+
     // Chèn dữ liệu mẫu cho users
     await usersCollection.insertMany([
       {
         username: "hoangnhat",
-        password: "123456", // Mật khẩu dạng plain text
+        password: hashedPassword1,
         fullName: "Nguyễn Hoàng Nhật",
         phoneNumber: "0123456789",
         email: "nhnhat202@gmail.com",
@@ -37,7 +43,7 @@ async function setupDatabase() {
       },
       {
         username: "thanhsang",
-        password: "123456", // Mật khẩu dạng plain text
+        password: hashedPassword2,
         fullName: "Nguyễn Thanh Sang",
         phoneNumber: "0987654321",
         email: "522H0141@student.tdtu.edu.vn",
