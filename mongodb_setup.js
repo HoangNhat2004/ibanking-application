@@ -46,7 +46,7 @@ async function setupDatabase() {
         password: hashedPassword2,
         fullName: "Nguyễn Thanh Sang",
         phoneNumber: "0987654321",
-        email: "522H0141@student.tdtu.edu.vn",
+        email: "locwwe1@gmail.com",
         balance: 5000000,
         transactionHistory: []
       }

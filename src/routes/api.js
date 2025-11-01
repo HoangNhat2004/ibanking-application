@@ -201,25 +201,20 @@ router.post('/payment', async (req, res) => {
 });
 
 router.post('/confirm-payment', async (req, res) => {
-  const { transactionId, otpCode, payerUsername, studentId } = req.body;
+  const { transactionId, payerUsername, studentId } = req.body;
+  console.log(`[CONFIRM] Attempt for user: ${payerUsername}, student: ${studentId}, tx: ${transactionId.slice(-6)}...`);
 
-  console.log(`Processing confirm payment for transactionId: ${transactionId}, username: ${payerUsername}, studentId: ${studentId}`);
-
-  if (!transactionId || !otpCode || !payerUsername || !studentId) {
+  if (!transactionId || !req.body.otpCode || !payerUsername || !studentId) {
     return res.status(400).json({ success: false, message: "All fields are required" });
   }
 
   let db;
   try {
     db = await connectDB();
-    console.log("Connected to MongoDB for OTP verification");
 
-    const otp = await db.collection('otps').findOne({ transactionId, code: otpCode });
+    const otp = await db.collection('otps').findOne({ transactionId, code: req.body.otpCode });
     if (!otp) {
-      await db.collection('students').updateOne(
-        { studentId: studentId.trim() },
-        { $set: { lockedBy: null } }
-      );
+      console.log(`[CONFIRM] Invalid OTP attempt`);
       return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
     }
 
@@ -229,45 +224,42 @@ router.post('/confirm-payment', async (req, res) => {
         { studentId: studentId.trim() },
         { $set: { lockedBy: null } }
       );
+      await db.collection('otps').deleteOne({ transactionId });
+      console.log(`[CONFIRM] OTP expired`);
       return res.status(400).json({ success: false, message: "OTP has expired" });
     }
 
     if (otp.payerUsername !== payerUsername || otp.studentId !== studentId.trim()) {
-      await db.collection('students').updateOne(
-        { studentId: studentId.trim() },
-        { $set: { lockedBy: null } }
-      );
       return res.status(400).json({ success: false, message: "Invalid transaction details" });
     }
 
-    const student = await db.collection('students').findOne({ studentId: studentId.trim(), lockedBy: { $ne: null }, isPaid: false });
+    const student = await db.collection('students').findOne({
+      studentId: studentId.trim(),
+      lockedBy: { $ne: null },
+      isPaid: false
+    });
+
     if (!student) {
       await db.collection('students').updateOne(
         { studentId: studentId.trim() },
         { $set: { lockedBy: null } }
       );
+      await db.collection('otps').deleteOne({ transactionId });
       return res.status(400).json({ success: false, message: "Student not found, already paid, or not locked" });
     }
 
     const user = await db.collection('users').findOne({ username: payerUsername });
-    if (!user) {
+    if (!user || user.balance < student.tuitionAmount) {
       await db.collection('students').updateOne(
         { studentId: studentId.trim() },
         { $set: { lockedBy: null } }
       );
-      return res.status(404).json({ success: false, message: "User not found" });
+      await db.collection('otps').deleteOne({ transactionId });
+      return res.status(400).json({ success: false, message: "User not found or insufficient balance" });
     }
 
     const amount = student.tuitionAmount;
-    if (user.balance < amount) {
-      await db.collection('students').updateOne(
-        { studentId: studentId.trim() },
-        { $set: { lockedBy: null } }
-      );
-      return res.status(400).json({ success: false, message: "Insufficient balance" });
-    }
 
-    // Cập nhật số dư người dùng
     await db.collection('users').updateOne(
       { username: payerUsername },
       {
@@ -284,29 +276,32 @@ router.post('/confirm-payment', async (req, res) => {
       }
     );
 
-    // Cập nhật trạng thái thanh toán của sinh viên
     await db.collection('students').updateOne(
       { studentId: studentId.trim() },
       { $set: { isPaid: true, lockedBy: null } }
     );
 
-    // Xóa OTP sau khi sử dụng
     await db.collection('otps').deleteOne({ transactionId });
 
-    // Gửi email xác nhận
-    const confirmationMessage = `Transaction successful! You have paid ${amount} VND for student ${studentId}. Transaction ID: ${transactionId}.`;
-    await sendEmail(otp.email, "Transaction Confirmation", confirmationMessage);
+    await sendEmail(
+      otp.email,
+      "Transaction Confirmation",
+      `Transaction successful! Paid ${amount} VND for student ${studentId}. ID: ${transactionId}.`
+    );
 
-    res.json({ success: true, message: "Transaction completed successfully" });
+    console.log(`[CONFIRM] SUCCESS for tx: ${transactionId.slice(-6)}...`);
+    return res.json({ success: true, message: "Transaction completed successfully" });
+
   } catch (error) {
-    console.error("Confirm payment error:", error.message);
+    console.error(`[CONFIRM] Server error: ${error.message}`);
     if (db) {
       await db.collection('students').updateOne(
         { studentId: studentId.trim() },
         { $set: { lockedBy: null } }
       );
+      await db.collection('otps').deleteOne({ transactionId });
     }
-    res.status(400).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
